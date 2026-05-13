@@ -147,7 +147,11 @@ export function StockoutDialog({ open, onOpenChange, item }: Props) {
               value={status}
               onValueChange={(v) => v && setStatus(v as StockoutItemStatus)}
             >
-              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {status === "ACTIVE" ? "Ativo (em ruptura)" : "Inativo (voltou ao estoque)"}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ACTIVE">Ativo (em ruptura)</SelectItem>
                 <SelectItem value="INACTIVE">Inativo (voltou ao estoque)</SelectItem>

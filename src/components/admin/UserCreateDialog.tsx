@@ -161,7 +161,9 @@ export function UserCreateDialog({ open, onOpenChange }: Props) {
           <div className="space-y-1.5">
             <Label>Role *</Label>
             <Select value={role} onValueChange={(v) => v && setRole(v as Role)}>
-              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full">
+                <SelectValue>{ROLE_LABEL[role]}</SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 {ROLES.map((r) => (
                   <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>

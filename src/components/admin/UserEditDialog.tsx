@@ -139,7 +139,9 @@ export function UserEditDialog({ open, onOpenChange, user, currentUserId }: Prop
               onValueChange={(v) => v && setRole(v as Role)}
               disabled={isSelf}
             >
-              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full">
+                <SelectValue>{ROLE_LABEL[role]}</SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 {ROLES.map((r) => (
                   <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>

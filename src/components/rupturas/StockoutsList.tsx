@@ -71,7 +71,11 @@ export function StockoutsList({ initialItems, canEdit }: Props) {
       <div className="flex items-end justify-between gap-2 flex-wrap">
         <div className="w-40">
           <Select value={filter} onValueChange={(v) => v && setFilter(v as typeof filter)}>
-            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full">
+              <SelectValue>
+                {filter === "ALL" ? "Todos" : filter === "ACTIVE" ? "Ativos" : "Inativos"}
+              </SelectValue>
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todos</SelectItem>
               <SelectItem value="ACTIVE">Ativos</SelectItem>

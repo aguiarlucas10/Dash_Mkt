@@ -147,6 +147,9 @@ export function TaskDialog({ open, onOpenChange, task, products: _products, user
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const statusLabel = STATUS_COLUMNS.find((c) => c.status === form.status)?.label ?? form.status;
+  const assignedUser = users.find((u) => u.id === form.assignedToId);
+
   function togglePlatform(p: Platform) {
     setForm((prev) => ({
       ...prev,
@@ -217,7 +220,9 @@ export function TaskDialog({ open, onOpenChange, task, products: _products, user
                 value={form.type}
                 onValueChange={(v) => v && setForm({ ...form, type: v as TaskType })}
               >
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full">
+                  <SelectValue>{TASK_TYPE_LABEL[form.type]}</SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   {ALL_TASK_TYPES.map((t) => (
                     <SelectItem key={t} value={t}>{TASK_TYPE_LABEL[t]}</SelectItem>
@@ -232,7 +237,9 @@ export function TaskDialog({ open, onOpenChange, task, products: _products, user
                 value={form.priority}
                 onValueChange={(v) => v && setForm({ ...form, priority: v as Priority })}
               >
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full">
+                  <SelectValue>{PRIORITY_LABEL[form.priority]}</SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   {ALL_PRIORITIES.map((p) => (
                     <SelectItem key={p} value={p}>{PRIORITY_LABEL[p]}</SelectItem>
@@ -248,7 +255,9 @@ export function TaskDialog({ open, onOpenChange, task, products: _products, user
                 onValueChange={(v) => v && setForm({ ...form, assignedToId: v })}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecione um responsável" />
+                  <SelectValue placeholder="Selecione um responsável">
+                    {assignedUser ? (assignedUser.name ?? assignedUser.email) : null}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {users.length === 0 && (
@@ -296,7 +305,9 @@ export function TaskDialog({ open, onOpenChange, task, products: _products, user
                   value={form.status}
                   onValueChange={(v) => v && setForm({ ...form, status: v as TaskStatus })}
                 >
-                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>{statusLabel}</SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     {STATUS_COLUMNS.map((c) => (
                       <SelectItem key={c.status} value={c.status}>{c.label}</SelectItem>
