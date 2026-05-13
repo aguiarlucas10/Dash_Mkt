@@ -1,22 +1,18 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 import { canEdit } from "@/lib/permissions";
-import { KanbanBoard } from "@/components/kanban/KanbanBoard";
-import type { KanbanTask, ProductOption, UserOption } from "@/components/kanban/types";
+import { CalendarView } from "@/components/calendario/CalendarView";
+import type { KanbanTask, UserOption } from "@/components/kanban/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function KanbanPage() {
+export default async function CalendarioPage() {
   const me = await getCurrentUser();
 
-  const [rawTasks, products, users] = await Promise.all([
+  const [rawTasks, users] = await Promise.all([
     prisma.creativeTask.findMany({
       include: { product: true, assignedTo: true },
-      orderBy: [{ priority: "asc" }, { deadline: "asc" }],
-    }),
-    prisma.product.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, sku: true, name: true },
+      orderBy: [{ deadline: "asc" }, { priority: "asc" }],
     }),
     prisma.user.findMany({
       where: { email: { not: "sistema@dash.local" } },
@@ -25,7 +21,6 @@ export default async function KanbanPage() {
     }),
   ]);
 
-  // Serializa Date -> string para passar a Client Component
   const initialTasks: KanbanTask[] = rawTasks.map((t) => ({
     id: t.id,
     title: t.title,
@@ -52,11 +47,20 @@ export default async function KanbanPage() {
   }));
 
   return (
-    <KanbanBoard
-      initialTasks={initialTasks}
-      products={products as ProductOption[]}
-      users={users as UserOption[]}
-      canEdit={canEdit(me)}
-    />
+    <div className="p-6 space-y-4 flex-1 flex flex-col min-h-0">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Calendário</h1>
+        <p className="text-sm text-muted-foreground">
+          Criativos plotados pelo prazo. Clique em um item para editar.
+        </p>
+      </div>
+
+      <CalendarView
+        initialTasks={initialTasks}
+        products={[]}
+        users={users as UserOption[]}
+        canEdit={canEdit(me)}
+      />
+    </div>
   );
 }

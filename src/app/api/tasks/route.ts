@@ -45,6 +45,7 @@ export async function POST(req: Request) {
       subject: parsed.data.subject,
       description: parsed.data.description ?? null,
       productId: parsed.data.productId ?? null,
+      creativeCount: parsed.data.creativeCount,
       type: parsed.data.type,
       priority: parsed.data.priority,
       deadline: parsed.data.deadline ?? null,

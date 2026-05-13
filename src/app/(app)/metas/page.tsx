@@ -1,22 +1,21 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
-import { canEdit } from "@/lib/permissions";
-import { KanbanBoard } from "@/components/kanban/KanbanBoard";
-import type { KanbanTask, ProductOption, UserOption } from "@/components/kanban/types";
+import { canEdit, isAdmin } from "@/lib/permissions";
+import { GoalsView } from "@/components/metas/GoalsView";
+import type { KanbanTask, UserOption } from "@/components/kanban/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function KanbanPage() {
+export default async function MetasPage() {
   const me = await getCurrentUser();
 
-  const [rawTasks, products, users] = await Promise.all([
+  const [rawTasks, rawGoals, users] = await Promise.all([
     prisma.creativeTask.findMany({
       include: { product: true, assignedTo: true },
-      orderBy: [{ priority: "asc" }, { deadline: "asc" }],
+      orderBy: [{ deadline: "asc" }, { priority: "asc" }],
     }),
-    prisma.product.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, sku: true, name: true },
+    prisma.goal.findMany({
+      orderBy: { month: "desc" },
     }),
     prisma.user.findMany({
       where: { email: { not: "sistema@dash.local" } },
@@ -25,7 +24,6 @@ export default async function KanbanPage() {
     }),
   ]);
 
-  // Serializa Date -> string para passar a Client Component
   const initialTasks: KanbanTask[] = rawTasks.map((t) => ({
     id: t.id,
     title: t.title,
@@ -51,12 +49,30 @@ export default async function KanbanPage() {
     updatedAt: t.updatedAt.toISOString(),
   }));
 
+  const initialGoals = rawGoals.map((g) => ({
+    id: g.id,
+    month: g.month.toISOString(),
+    target: g.target,
+    notes: g.notes,
+  }));
+
   return (
-    <KanbanBoard
-      initialTasks={initialTasks}
-      products={products as ProductOption[]}
-      users={users as UserOption[]}
-      canEdit={canEdit(me)}
-    />
+    <div className="p-6 space-y-4 max-w-7xl">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Metas</h1>
+        <p className="text-sm text-muted-foreground">
+          Defina a meta mensal de criativos e acompanhe o progresso baseado nos
+          prazos das tasks.
+        </p>
+      </div>
+
+      <GoalsView
+        initialTasks={initialTasks}
+        initialGoals={initialGoals}
+        users={users as UserOption[]}
+        canEdit={canEdit(me)}
+        isAdmin={isAdmin(me)}
+      />
+    </div>
   );
 }

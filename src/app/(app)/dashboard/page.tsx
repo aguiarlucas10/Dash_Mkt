@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TaskStatus, AdStatus } from "@/generated/prisma/enums";
+import { TaskStatus, StockoutItemStatus } from "@/generated/prisma/enums";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,18 +10,17 @@ import { ptBR } from "date-fns/locale";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [taskCounts, activeStockouts, pausedAds, upcomingDeadlines] = await Promise.all([
+  const [taskCounts, activeStockouts, upcomingDeadlines] = await Promise.all([
     prisma.creativeTask.groupBy({
       by: ["status"],
+      _sum: { creativeCount: true },
       _count: { _all: true },
     }),
-    prisma.stockoutEvent.findMany({
-      where: { endedAt: null },
-      include: { product: true, affectedAds: true },
-      orderBy: { startedAt: "desc" },
+    prisma.stockoutItem.findMany({
+      where: { status: StockoutItemStatus.ACTIVE },
+      orderBy: { createdAt: "desc" },
       take: 10,
     }),
-    prisma.ad.count({ where: { status: AdStatus.PAUSED } }),
     prisma.creativeTask.findMany({
       where: {
         deadline: {
@@ -30,18 +29,23 @@ export default async function DashboardPage() {
         },
         status: { notIn: [TaskStatus.PUBLISHED, TaskStatus.APPROVED] },
       },
-      include: { product: true, assignedTo: true },
+      include: { assignedTo: true },
       orderBy: { deadline: "asc" },
       take: 10,
     }),
   ]);
 
-  const byStatus = Object.fromEntries(taskCounts.map((c) => [c.status, c._count._all]));
-  const totalTasks = taskCounts.reduce((sum, c) => sum + c._count._all, 0);
-  const inProgress =
-    (byStatus[TaskStatus.BRIEFING] ?? 0) +
-    (byStatus[TaskStatus.IN_PRODUCTION] ?? 0) +
-    (byStatus[TaskStatus.IN_REVIEW] ?? 0);
+  const sumByStatus = (statuses: TaskStatus[]) =>
+    taskCounts
+      .filter((c) => statuses.includes(c.status))
+      .reduce((acc, c) => acc + (c._sum.creativeCount ?? 0), 0);
+
+  const totalCreatives = taskCounts.reduce((acc, c) => acc + (c._sum.creativeCount ?? 0), 0);
+  const inProgressCreatives = sumByStatus([
+    TaskStatus.BRIEFING,
+    TaskStatus.IN_PRODUCTION,
+    TaskStatus.IN_REVIEW,
+  ]);
 
   return (
     <div className="p-6 space-y-6 max-w-7xl">
@@ -56,10 +60,14 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <StatCard label="Tasks totais" value={totalTasks} />
-        <StatCard label="Em produção" value={inProgress} />
-        <StatCard label="Rupturas ativas" value={activeStockouts.length} tone={activeStockouts.length > 0 ? "warning" : undefined} />
-        <StatCard label="Anúncios pausados" value={pausedAds} tone={pausedAds > 0 ? "warning" : undefined} />
+        <StatCard label="Criativos totais" value={totalCreatives} />
+        <StatCard label="Em produção" value={inProgressCreatives} />
+        <StatCard
+          label="Rupturas ativas"
+          value={activeStockouts.length}
+          tone={activeStockouts.length > 0 ? "warning" : undefined}
+        />
+        <StatCard label="Prazos próximos 7d" value={upcomingDeadlines.length} />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -81,8 +89,7 @@ export default async function DashboardPage() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{task.title}</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {task.product?.name ?? "Sem produto"} •{" "}
-                    {task.assignedTo?.name ?? "Sem responsável"}
+                    {task.subject ?? "—"} • {task.assignedTo?.name ?? task.assignedTo?.email ?? "Sem responsável"}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
@@ -101,24 +108,23 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Rupturas ativas</CardTitle>
-            <CardDescription>Produtos sem estoque e anúncios afetados.</CardDescription>
+            <CardDescription>Produtos sem estoque agora.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {activeStockouts.length === 0 && (
               <p className="text-sm text-muted-foreground">Nenhuma ruptura ativa.</p>
             )}
-            {activeStockouts.map((event) => (
+            {activeStockouts.map((item) => (
               <Link
-                key={event.id}
+                key={item.id}
                 href="/rupturas"
                 className="flex items-center justify-between gap-2 rounded-md border p-3 hover:bg-muted/50 transition-colors"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{event.product.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Desde {format(event.startedAt, "dd MMM", { locale: ptBR })} •{" "}
-                    {event.affectedAds.length} an. afetado(s)
-                  </p>
+                  <p className="text-sm font-medium truncate">{item.product}</p>
+                  {item.category && (
+                    <p className="text-xs text-muted-foreground truncate">{item.category}</p>
+                  )}
                 </div>
                 <Badge variant="destructive">Ativa</Badge>
               </Link>

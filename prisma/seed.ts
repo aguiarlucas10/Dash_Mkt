@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { Role, TaskType, Priority, TaskStatus, Platform, AdStatus, Tier } from "../src/generated/prisma/enums";
+import { Role, TaskType, Priority, TaskStatus, Platform, AdStatus, Tier, StockoutItemStatus } from "../src/generated/prisma/enums";
 
 const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 if (!connectionString) {
@@ -54,6 +54,7 @@ async function main() {
           title: "Lançamento Brinco Solitário — vídeo principal",
           subject: "Brinco Solitário Ouro",
           description: "Hero video 30s para Reels/TikTok do novo lançamento.",
+          creativeCount: 3,
           type: TaskType.LAUNCH,
           priority: Priority.P0,
           status: TaskStatus.BRIEFING,
@@ -67,6 +68,7 @@ async function main() {
           title: "Promo Dia das Mães — Colar Coração",
           subject: "Colar Coração Pequeno",
           description: "Estática + carrossel com desconto da campanha.",
+          creativeCount: 5,
           type: TaskType.PROMO,
           priority: Priority.P1,
           status: TaskStatus.BACKLOG,
@@ -80,6 +82,7 @@ async function main() {
           title: "Evergreen Aliança — depoimento cliente",
           subject: "Anel Aliança Lisa",
           description: "UGC editado com depoimento real.",
+          creativeCount: 1,
           type: TaskType.EVERGREEN,
           priority: Priority.P2,
           status: TaskStatus.IN_PRODUCTION,
@@ -108,6 +111,28 @@ async function main() {
   } else {
     console.log(`ads: ${adsExisting} (existing, skip)`);
   }
+
+  const stockoutExisting = await prisma.stockoutItem.count();
+  if (stockoutExisting === 0) {
+    await prisma.stockoutItem.createMany({
+      data: [
+        { product: "Brinco Solitário Ouro", category: "Brincos", status: StockoutItemStatus.ACTIVE },
+        { product: "Coleção Verão 2026", category: "Coleções", status: StockoutItemStatus.INACTIVE },
+      ],
+    });
+    console.log("stockout items: 2");
+  } else {
+    console.log(`stockout items: ${stockoutExisting} (existing, skip)`);
+  }
+
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const goal = await prisma.goal.upsert({
+    where: { month: monthStart },
+    update: {},
+    create: { month: monthStart, target: 20, notes: "Meta inicial de demonstração" },
+  });
+  console.log(`goal ${goal.month.toISOString().slice(0, 7)}: target ${goal.target}`);
 }
 
 main()

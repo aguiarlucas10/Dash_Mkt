@@ -5,6 +5,7 @@ export type KanbanTask = {
   title: string;
   subject: string | null;
   description: string | null;
+  creativeCount: number;
   type: TaskType;
   priority: Priority;
   status: TaskStatus;

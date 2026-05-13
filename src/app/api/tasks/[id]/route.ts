@@ -33,6 +33,7 @@ export async function PATCH(
       ...(parsed.data.subject !== undefined && { subject: parsed.data.subject }),
       ...(parsed.data.description !== undefined && { description: parsed.data.description }),
       ...(parsed.data.productId !== undefined && { productId: parsed.data.productId }),
+      ...(parsed.data.creativeCount !== undefined && { creativeCount: parsed.data.creativeCount }),
       ...(parsed.data.type !== undefined && { type: parsed.data.type }),
       ...(parsed.data.priority !== undefined && { priority: parsed.data.priority }),
       ...(parsed.data.deadline !== undefined && { deadline: parsed.data.deadline }),

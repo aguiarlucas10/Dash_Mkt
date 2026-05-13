@@ -52,9 +52,12 @@ export function KanbanCard({ task, onClick, isDragOverlay }: Props) {
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium leading-snug">{task.title}</p>
-        <Badge variant={PRIORITY_VARIANT[task.priority]} className="shrink-0">
-          {task.priority}
-        </Badge>
+        <div className="flex items-center gap-1 shrink-0">
+          {task.creativeCount > 1 && (
+            <Badge variant="secondary" className="tabular-nums">×{task.creativeCount}</Badge>
+          )}
+          <Badge variant={PRIORITY_VARIANT[task.priority]}>{task.priority}</Badge>
+        </div>
       </div>
 
       {(task.subject ?? task.product?.name) && (

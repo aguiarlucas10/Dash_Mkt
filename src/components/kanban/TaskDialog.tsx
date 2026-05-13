@@ -52,6 +52,7 @@ type FormState = {
   title: string;
   subject: string;
   description: string;
+  creativeCount: number;
   type: TaskType;
   priority: Priority;
   deadline: string;
@@ -65,6 +66,7 @@ function emptyForm(task: KanbanTask | null): FormState {
     title: task?.title ?? "",
     subject: task?.subject ?? task?.product?.name ?? "",
     description: task?.description ?? "",
+    creativeCount: task?.creativeCount ?? 1,
     type: task?.type ?? "EVERGREEN",
     priority: task?.priority ?? "P2",
     deadline: task?.deadline ? task.deadline.slice(0, 10) : "",
@@ -91,6 +93,7 @@ export function TaskDialog({ open, onOpenChange, task, products: _products, user
         title: form.title.trim(),
         subject: form.subject.trim(),
         description: form.description.trim() || null,
+        creativeCount: form.creativeCount,
         type: form.type,
         priority: form.priority,
         deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
@@ -265,6 +268,24 @@ export function TaskDialog({ open, onOpenChange, task, products: _products, user
                 type="date"
                 value={form.deadline}
                 onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="creativeCount">Qtde de criativos *</Label>
+              <Input
+                id="creativeCount"
+                type="number"
+                min={1}
+                max={999}
+                step={1}
+                value={form.creativeCount}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    creativeCount: Math.max(1, Number(e.target.value) || 1),
+                  })
+                }
               />
             </div>
 

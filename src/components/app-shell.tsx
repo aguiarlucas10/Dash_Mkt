@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LayoutDashboard, KanbanSquare, PackageX, Package, Megaphone, Users, LogOut } from "lucide-react";
+import { LayoutDashboard, KanbanSquare, CalendarDays, Target, PackageX, Users, LogOut } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { AppUser } from "@/lib/session";
 
@@ -14,9 +14,9 @@ type NavItem = { href: string; label: string; icon: React.ComponentType<{ classN
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard },
   { href: "/kanban", label: "Kanban de criativos", icon: KanbanSquare },
+  { href: "/calendario", label: "Calendário", icon: CalendarDays },
+  { href: "/metas", label: "Metas", icon: Target },
   { href: "/rupturas", label: "Rupturas", icon: PackageX },
-  { href: "/produtos", label: "Produtos", icon: Package },
-  { href: "/anuncios", label: "Anúncios", icon: Megaphone },
   { href: "/admin/users", label: "Usuários", icon: Users, adminOnly: true },
 ];
 
