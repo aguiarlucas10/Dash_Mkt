@@ -24,13 +24,14 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TaskDialog } from "@/components/kanban/TaskDialog";
-import type { KanbanTask, ProductOption, UserOption } from "@/components/kanban/types";
+import type { KanbanTask, ProductOption, UserOption, GoalCategoryOption } from "@/components/kanban/types";
 import type { Priority } from "@/generated/prisma/enums";
 
 type Props = {
   initialTasks: KanbanTask[];
   products: ProductOption[];
   users: UserOption[];
+  goalCategories: GoalCategoryOption[];
   canEdit: boolean;
 };
 
@@ -50,7 +51,7 @@ async function fetchTasks(): Promise<KanbanTask[]> {
   return data.tasks;
 }
 
-export function CalendarView({ initialTasks, products, users, canEdit }: Props) {
+export function CalendarView({ initialTasks, products, users, goalCategories, canEdit }: Props) {
   const { data: tasks = initialTasks } = useQuery({
     queryKey: ["tasks"],
     queryFn: fetchTasks,
@@ -222,6 +223,7 @@ export function CalendarView({ initialTasks, products, users, canEdit }: Props) 
         task={dialogTask}
         products={products}
         users={users}
+        goalCategories={goalCategories}
       />
     </div>
   );

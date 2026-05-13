@@ -11,7 +11,7 @@ export async function GET() {
   }
 
   const tasks = await prisma.creativeTask.findMany({
-    include: { product: true, assignedTo: true },
+    include: { product: true, assignedTo: true, goalCategory: true },
     orderBy: [{ priority: "asc" }, { deadline: "asc" }],
   });
 
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
       description: parsed.data.description ?? null,
       productId: parsed.data.productId ?? null,
       creativeCount: parsed.data.creativeCount,
+      goalCategoryId: parsed.data.goalCategoryId ?? null,
       type: parsed.data.type,
       priority: parsed.data.priority,
       deadline: parsed.data.deadline ?? null,
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
       assets: parsed.data.assets,
       requestedById: me.id,
     },
-    include: { product: true, assignedTo: true },
+    include: { product: true, assignedTo: true, goalCategory: true },
   });
 
   return NextResponse.json({ task }, { status: 201 });

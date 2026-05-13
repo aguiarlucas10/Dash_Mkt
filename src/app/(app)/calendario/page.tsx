@@ -2,22 +2,26 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 import { canEdit } from "@/lib/permissions";
 import { CalendarView } from "@/components/calendario/CalendarView";
-import type { KanbanTask, UserOption } from "@/components/kanban/types";
+import type { KanbanTask, UserOption, GoalCategoryOption } from "@/components/kanban/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function CalendarioPage() {
   const me = await getCurrentUser();
 
-  const [rawTasks, users] = await Promise.all([
+  const [rawTasks, users, goalCategories] = await Promise.all([
     prisma.creativeTask.findMany({
-      include: { product: true, assignedTo: true },
+      include: { product: true, assignedTo: true, goalCategory: true },
       orderBy: [{ deadline: "asc" }, { priority: "asc" }],
     }),
     prisma.user.findMany({
       where: { email: { not: "sistema@dash.local" } },
       orderBy: [{ name: "asc" }, { email: "asc" }],
       select: { id: true, email: true, name: true },
+    }),
+    prisma.goalCategory.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, color: true },
     }),
   ]);
 
@@ -27,6 +31,10 @@ export default async function CalendarioPage() {
     subject: t.subject,
     description: t.description,
     creativeCount: t.creativeCount,
+    goalCategoryId: t.goalCategoryId,
+    goalCategory: t.goalCategory
+      ? { id: t.goalCategory.id, name: t.goalCategory.name, color: t.goalCategory.color }
+      : null,
     type: t.type,
     priority: t.priority,
     status: t.status,
@@ -59,6 +67,7 @@ export default async function CalendarioPage() {
         initialTasks={initialTasks}
         products={[]}
         users={users as UserOption[]}
+        goalCategories={goalCategories as GoalCategoryOption[]}
         canEdit={canEdit(me)}
       />
     </div>

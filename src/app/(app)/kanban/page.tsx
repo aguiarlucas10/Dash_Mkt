@@ -2,16 +2,16 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 import { canEdit } from "@/lib/permissions";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
-import type { KanbanTask, ProductOption, UserOption } from "@/components/kanban/types";
+import type { KanbanTask, ProductOption, UserOption, GoalCategoryOption } from "@/components/kanban/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function KanbanPage() {
   const me = await getCurrentUser();
 
-  const [rawTasks, products, users] = await Promise.all([
+  const [rawTasks, products, users, goalCategories] = await Promise.all([
     prisma.creativeTask.findMany({
-      include: { product: true, assignedTo: true },
+      include: { product: true, assignedTo: true, goalCategory: true },
       orderBy: [{ priority: "asc" }, { deadline: "asc" }],
     }),
     prisma.product.findMany({
@@ -23,6 +23,10 @@ export default async function KanbanPage() {
       orderBy: [{ name: "asc" }, { email: "asc" }],
       select: { id: true, email: true, name: true },
     }),
+    prisma.goalCategory.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, color: true },
+    }),
   ]);
 
   // Serializa Date -> string para passar a Client Component
@@ -32,6 +36,10 @@ export default async function KanbanPage() {
     subject: t.subject,
     description: t.description,
     creativeCount: t.creativeCount,
+    goalCategoryId: t.goalCategoryId,
+    goalCategory: t.goalCategory
+      ? { id: t.goalCategory.id, name: t.goalCategory.name, color: t.goalCategory.color }
+      : null,
     type: t.type,
     priority: t.priority,
     status: t.status,
@@ -56,6 +64,7 @@ export default async function KanbanPage() {
       initialTasks={initialTasks}
       products={products as ProductOption[]}
       users={users as UserOption[]}
+      goalCategories={goalCategories as GoalCategoryOption[]}
       canEdit={canEdit(me)}
     />
   );

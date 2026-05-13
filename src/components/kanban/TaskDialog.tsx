@@ -33,6 +33,7 @@ import {
   type KanbanTask,
   type ProductOption,
   type UserOption,
+  type GoalCategoryOption,
 } from "./types";
 import type { TaskType, Priority, Platform, TaskStatus } from "@/generated/prisma/enums";
 
@@ -42,7 +43,10 @@ type Props = {
   task: KanbanTask | null;
   products: ProductOption[];
   users: UserOption[];
+  goalCategories?: GoalCategoryOption[];
 };
+
+const NO_META = "__no_meta__";
 
 const ALL_TASK_TYPES: TaskType[] = ["LAUNCH", "PROMO", "EVERGREEN", "REPLACEMENT"];
 const ALL_PRIORITIES: Priority[] = ["P0", "P1", "P2", "P3"];
@@ -53,6 +57,7 @@ type FormState = {
   subject: string;
   description: string;
   creativeCount: number;
+  goalCategoryId: string;
   type: TaskType;
   priority: Priority;
   deadline: string;
@@ -67,6 +72,7 @@ function emptyForm(task: KanbanTask | null): FormState {
     subject: task?.subject ?? task?.product?.name ?? "",
     description: task?.description ?? "",
     creativeCount: task?.creativeCount ?? 1,
+    goalCategoryId: task?.goalCategoryId ?? NO_META,
     type: task?.type ?? "EVERGREEN",
     priority: task?.priority ?? "P2",
     deadline: task?.deadline ? task.deadline.slice(0, 10) : "",
@@ -76,7 +82,14 @@ function emptyForm(task: KanbanTask | null): FormState {
   };
 }
 
-export function TaskDialog({ open, onOpenChange, task, products: _products, users }: Props) {
+export function TaskDialog({
+  open,
+  onOpenChange,
+  task,
+  products: _products,
+  users,
+  goalCategories = [],
+}: Props) {
   const isEdit = Boolean(task);
   const [form, setForm] = useState<FormState>(() => emptyForm(task));
   const queryClient = useQueryClient();
@@ -94,6 +107,7 @@ export function TaskDialog({ open, onOpenChange, task, products: _products, user
         subject: form.subject.trim(),
         description: form.description.trim() || null,
         creativeCount: form.creativeCount,
+        goalCategoryId: form.goalCategoryId === NO_META ? null : form.goalCategoryId,
         type: form.type,
         priority: form.priority,
         deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
@@ -149,6 +163,7 @@ export function TaskDialog({ open, onOpenChange, task, products: _products, user
 
   const statusLabel = STATUS_COLUMNS.find((c) => c.status === form.status)?.label ?? form.status;
   const assignedUser = users.find((u) => u.id === form.assignedToId);
+  const selectedGoal = goalCategories.find((g) => g.id === form.goalCategoryId);
 
   function togglePlatform(p: Platform) {
     setForm((prev) => ({
@@ -296,6 +311,26 @@ export function TaskDialog({ open, onOpenChange, task, products: _products, user
                   })
                 }
               />
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Meta</Label>
+              <Select
+                value={form.goalCategoryId}
+                onValueChange={(v) => v && setForm({ ...form, goalCategoryId: v })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {form.goalCategoryId === NO_META ? "Sem meta vinculada" : (selectedGoal?.name ?? "Sem meta vinculada")}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_META}>Sem meta vinculada</SelectItem>
+                  {goalCategories.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {isEdit && (

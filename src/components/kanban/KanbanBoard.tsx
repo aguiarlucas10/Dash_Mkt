@@ -17,13 +17,14 @@ import { toast } from "sonner";
 import { KanbanColumn } from "./KanbanColumn";
 import { KanbanCard } from "./KanbanCard";
 import { TaskDialog } from "./TaskDialog";
-import { STATUS_COLUMNS, type KanbanTask, type ProductOption, type UserOption } from "./types";
+import { STATUS_COLUMNS, type KanbanTask, type ProductOption, type UserOption, type GoalCategoryOption } from "./types";
 import type { TaskStatus } from "@/generated/prisma/enums";
 
 type Props = {
   initialTasks: KanbanTask[];
   products: ProductOption[];
   users: UserOption[];
+  goalCategories: GoalCategoryOption[];
   canEdit: boolean;
 };
 
@@ -34,7 +35,7 @@ async function fetchTasks(): Promise<KanbanTask[]> {
   return data.tasks;
 }
 
-export function KanbanBoard({ initialTasks, products, users, canEdit }: Props) {
+export function KanbanBoard({ initialTasks, products, users, goalCategories, canEdit }: Props) {
   const queryClient = useQueryClient();
   const { data: tasks = [] } = useQuery({
     queryKey: ["tasks"],
@@ -154,6 +155,7 @@ export function KanbanBoard({ initialTasks, products, users, canEdit }: Props) {
         task={dialogTask}
         products={products}
         users={users}
+        goalCategories={goalCategories}
       />
     </div>
   );

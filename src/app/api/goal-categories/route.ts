@@ -2,17 +2,16 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/permissions";
-import { upsertGoalSchema } from "@/lib/validators/goal";
+import { createGoalCategorySchema } from "@/lib/validators/goal";
 
 export async function GET() {
   const me = await getCurrentUser();
   if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const goals = await prisma.goal.findMany({
-    include: { category: true },
-    orderBy: [{ month: "desc" }, { category: { name: "asc" } }],
+  const categories = await prisma.goalCategory.findMany({
+    orderBy: { name: "asc" },
   });
-  return NextResponse.json({ goals });
+  return NextResponse.json({ categories });
 }
 
 export async function POST(req: Request) {
@@ -27,17 +26,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const parsed = upsertGoalSchema.safeParse(body);
+  const parsed = createGoalCategorySchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid body", issues: parsed.error.issues }, { status: 400 });
   }
 
-  const { categoryId, month, target, notes } = parsed.data;
-  const goal = await prisma.goal.upsert({
-    where: { categoryId_month: { categoryId, month } },
-    update: { target, notes: notes ?? null },
-    create: { categoryId, month, target, notes: notes ?? null },
-    include: { category: true },
-  });
-  return NextResponse.json({ goal });
+  try {
+    const category = await prisma.goalCategory.create({
+      data: {
+        name: parsed.data.name,
+        description: parsed.data.description ?? null,
+        color: parsed.data.color ?? null,
+      },
+    });
+    return NextResponse.json({ category }, { status: 201 });
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("Unique")) {
+      return NextResponse.json({ error: "Já existe uma meta com esse nome" }, { status: 400 });
+    }
+    throw err;
+  }
 }

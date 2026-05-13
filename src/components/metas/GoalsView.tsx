@@ -14,16 +14,18 @@ import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Pencil, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Plus, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TaskDialog } from "@/components/kanban/TaskDialog";
 import { GoalDialog, type Goal } from "./GoalDialog";
-import type { KanbanTask, UserOption } from "@/components/kanban/types";
+import { GoalCategoryDialog, type EditableCategory } from "./GoalCategoryDialog";
+import type { KanbanTask, UserOption, GoalCategoryOption } from "@/components/kanban/types";
 import type { TaskStatus } from "@/generated/prisma/enums";
 
 type Props = {
   initialTasks: KanbanTask[];
   initialGoals: Goal[];
+  initialCategories: GoalCategoryOption[];
   users: UserOption[];
   canEdit: boolean;
   isAdmin: boolean;
@@ -55,7 +57,21 @@ async function fetchGoals(): Promise<Goal[]> {
   return data.goals;
 }
 
-export function GoalsView({ initialTasks, initialGoals, users, canEdit, isAdmin }: Props) {
+async function fetchCategories(): Promise<GoalCategoryOption[]> {
+  const res = await fetch("/api/goal-categories", { cache: "no-store" });
+  if (!res.ok) throw new Error("Falha ao carregar categorias");
+  const data = await res.json();
+  return data.categories;
+}
+
+export function GoalsView({
+  initialTasks,
+  initialGoals,
+  initialCategories,
+  users,
+  canEdit,
+  isAdmin,
+}: Props) {
   const { data: tasks = initialTasks } = useQuery({
     queryKey: ["tasks"],
     queryFn: fetchTasks,
@@ -66,19 +82,29 @@ export function GoalsView({ initialTasks, initialGoals, users, canEdit, isAdmin 
     queryFn: fetchGoals,
     initialData: initialGoals,
   });
+  const { data: categories = initialCategories } = useQuery({
+    queryKey: ["goal-categories"],
+    queryFn: fetchCategories,
+    initialData: initialCategories,
+  });
 
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
-  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+  const [goalDialog, setGoalDialog] = useState<{
+    open: boolean;
+    categoryId: string;
+    categoryName: string;
+    goal: Goal | null;
+  } | null>(null);
+  const [categoryDialog, setCategoryDialog] = useState<{
+    open: boolean;
+    category: EditableCategory | null;
+  } | null>(null);
   const [taskDialogTask, setTaskDialogTask] = useState<KanbanTask | null>(null);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
 
   const monthStart = cursor;
   const monthEnd = endOfMonth(cursor);
-
-  const goalForMonth = useMemo(() => {
-    const key = format(monthStart, "yyyy-MM");
-    return goals.find((g) => g.month.slice(0, 7) === key) ?? null;
-  }, [goals, monthStart]);
+  const monthKey = format(monthStart, "yyyy-MM");
 
   const tasksInMonth = useMemo(() => {
     return tasks.filter((t) => {
@@ -88,16 +114,43 @@ export function GoalsView({ initialTasks, initialGoals, users, canEdit, isAdmin 
     });
   }, [tasks, monthStart, monthEnd]);
 
-  const delivered = tasksInMonth.filter((t) => DELIVERED_STATUSES.includes(t.status));
-  const inFlight = tasksInMonth.filter((t) => !DELIVERED_STATUSES.includes(t.status));
+  const goalsByCategory = useMemo(() => {
+    const map = new Map<string, Goal>();
+    for (const g of goals) {
+      if (g.month.slice(0, 7) === monthKey) {
+        map.set(g.categoryId, g);
+      }
+    }
+    return map;
+  }, [goals, monthKey]);
 
-  const deliveredCount = delivered.reduce((sum, t) => sum + t.creativeCount, 0);
-  const inFlightCount = inFlight.reduce((sum, t) => sum + t.creativeCount, 0);
-  const totalCount = deliveredCount + inFlightCount;
+  const tasksByCategory = useMemo(() => {
+    const map = new Map<string | null, KanbanTask[]>();
+    for (const t of tasksInMonth) {
+      const arr = map.get(t.goalCategoryId) ?? [];
+      arr.push(t);
+      map.set(t.goalCategoryId, arr);
+    }
+    return map;
+  }, [tasksInMonth]);
 
-  const target = goalForMonth?.target ?? 0;
-  const progressPct = target > 0 ? Math.min(100, Math.round((deliveredCount / target) * 100)) : 0;
-
+  function openCreateCategory() {
+    setCategoryDialog({ open: true, category: null });
+  }
+  function openEditCategory(c: GoalCategoryOption) {
+    setCategoryDialog({
+      open: true,
+      category: { id: c.id, name: c.name, description: null, color: c.color },
+    });
+  }
+  function openSetGoal(categoryId: string, categoryName: string) {
+    setGoalDialog({
+      open: true,
+      categoryId,
+      categoryName,
+      goal: goalsByCategory.get(categoryId) ?? null,
+    });
+  }
   function openTaskDialog(task: KanbanTask) {
     if (!canEdit) return;
     setTaskDialogTask(task);
@@ -105,6 +158,7 @@ export function GoalsView({ initialTasks, initialGoals, users, canEdit, isAdmin 
   }
 
   const monthLabel = format(monthStart, "MMMM 'de' yyyy", { locale: ptBR });
+  const uncategorizedTasks = tasksByCategory.get(null) ?? [];
 
   return (
     <div className="space-y-4">
@@ -122,163 +176,200 @@ export function GoalsView({ initialTasks, initialGoals, users, canEdit, isAdmin 
           <h2 className="text-lg font-semibold tracking-tight ml-2 capitalize">{monthLabel}</h2>
         </div>
         {isAdmin && (
-          <Button onClick={() => setGoalDialogOpen(true)}>
-            {goalForMonth ? <><Pencil className="h-4 w-4" /> Editar meta</> : <><Plus className="h-4 w-4" /> Definir meta</>}
+          <Button onClick={openCreateCategory}>
+            <Plus className="h-4 w-4" />
+            Nova meta
           </Button>
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <StatCard label="Meta" value={target} hint={target === 0 ? "Sem meta definida" : undefined} />
-        <StatCard label="Realizado" value={deliveredCount} hint="Aprovado + Publicado" />
-        <StatCard label="Em aberto" value={inFlightCount} hint="Resto das tasks do mês" />
+      {categories.length === 0 && (
         <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Progresso</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-3xl font-semibold tabular-nums">
-              {target > 0 ? `${progressPct}%` : "—"}
+          <CardContent className="py-10 text-center space-y-3">
+            <Target className="h-10 w-10 mx-auto text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Nenhuma meta cadastrada ainda.
+              {isAdmin && " Crie a primeira clicando em \"Nova meta\"."}
             </p>
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div
-                className={cn(
-                  "h-full transition-all",
-                  progressPct >= 100 ? "bg-green-500" : "bg-primary",
-                )}
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
           </CardContent>
         </Card>
+      )}
+
+      <div className="space-y-4">
+        {categories.map((category) => {
+          const goalForMonth = goalsByCategory.get(category.id) ?? null;
+          const categoryTasks = tasksByCategory.get(category.id) ?? [];
+          const delivered = categoryTasks.filter((t) => DELIVERED_STATUSES.includes(t.status));
+          const inFlight = categoryTasks.filter((t) => !DELIVERED_STATUSES.includes(t.status));
+          const deliveredCount = delivered.reduce((s, t) => s + t.creativeCount, 0);
+          const inFlightCount = inFlight.reduce((s, t) => s + t.creativeCount, 0);
+          const target = goalForMonth?.target ?? 0;
+          const progressPct = target > 0 ? Math.min(100, Math.round((deliveredCount / target) * 100)) : 0;
+
+          return (
+            <Card key={category.id}>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg">{category.name}</CardTitle>
+                    {goalForMonth?.notes && (
+                      <CardDescription className="mt-1">{goalForMonth.notes}</CardDescription>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {isAdmin && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openSetGoal(category.id, category.name)}
+                        title="Definir meta do mês"
+                      >
+                        <Target className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {isAdmin && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEditCategory(category)}
+                        title="Editar / remover meta"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <Stat label="Meta" value={target} hint={target === 0 ? "Sem meta no mês" : undefined} />
+                  <Stat label="Realizado" value={deliveredCount} hint="Aprovado + Publicado" />
+                  <Stat label="Em aberto" value={inFlightCount} hint="Resto das tasks" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Progresso</p>
+                    <p className="text-2xl font-semibold tabular-nums mt-1">
+                      {target > 0 ? `${progressPct}%` : "—"}
+                    </p>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-1">
+                      <div
+                        className={cn(
+                          "h-full transition-all",
+                          progressPct >= 100 ? "bg-green-500" : "bg-primary",
+                        )}
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {categoryTasks.length > 0 && (
+                  <TaskGroup tasks={categoryTasks} canEdit={canEdit} onTaskClick={openTaskDialog} />
+                )}
+                {categoryTasks.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    Nenhuma task vinculada com prazo neste mês.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+
+        {uncategorizedTasks.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg text-muted-foreground">Sem meta vinculada</CardTitle>
+              <CardDescription>
+                Tasks com prazo no mês que não pertencem a nenhuma meta. Vincule via Kanban.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TaskGroup tasks={uncategorizedTasks} canEdit={canEdit} onTaskClick={openTaskDialog} />
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Atividades do mês</CardTitle>
-          <CardDescription>
-            Tasks com prazo neste mês, agrupadas pelo status. Clique para abrir.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Group
-            title="Realizado"
-            count={deliveredCount}
-            tasks={delivered}
-            tone="success"
-            canEdit={canEdit}
-            onTaskClick={openTaskDialog}
-          />
-          <Group
-            title="Em aberto"
-            count={inFlightCount}
-            tasks={inFlight}
-            tone="warning"
-            canEdit={canEdit}
-            onTaskClick={openTaskDialog}
-          />
-          {tasksInMonth.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-6">
-              Nenhuma task com prazo neste mês.
-            </p>
-          )}
-          {totalCount > 0 && goalForMonth?.notes && (
-            <div className="rounded-md border bg-muted/30 p-3 text-sm">
-              <p className="text-xs font-medium text-muted-foreground mb-1">Nota da meta</p>
-              <p className="whitespace-pre-wrap">{goalForMonth.notes}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <GoalDialog
-        open={goalDialogOpen}
-        onOpenChange={setGoalDialogOpen}
-        monthStart={monthStart}
-        goal={goalForMonth}
-      />
+      {goalDialog && (
+        <GoalDialog
+          open={goalDialog.open}
+          onOpenChange={(o) => setGoalDialog(o ? goalDialog : null)}
+          monthStart={monthStart}
+          categoryId={goalDialog.categoryId}
+          categoryName={goalDialog.categoryName}
+          goal={goalDialog.goal}
+        />
+      )}
+      {categoryDialog && (
+        <GoalCategoryDialog
+          open={categoryDialog.open}
+          onOpenChange={(o) => setCategoryDialog(o ? categoryDialog : null)}
+          category={categoryDialog.category}
+        />
+      )}
       <TaskDialog
         open={taskDialogOpen}
         onOpenChange={setTaskDialogOpen}
         task={taskDialogTask}
         products={[]}
         users={users}
+        goalCategories={categories}
       />
     </div>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: number;
-  hint?: string;
-}) {
+function Stat({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardDescription>{label}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p className="text-3xl font-semibold tabular-nums">{value}</p>
-        {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
-      </CardContent>
-    </Card>
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-2xl font-semibold tabular-nums mt-1">{value}</p>
+      {hint && <p className="text-[10px] text-muted-foreground mt-0.5">{hint}</p>}
+    </div>
   );
 }
 
-function Group({
-  title,
-  count,
+function TaskGroup({
   tasks,
-  tone,
   canEdit,
   onTaskClick,
 }: {
-  title: string;
-  count: number;
   tasks: KanbanTask[];
-  tone: "success" | "warning";
   canEdit: boolean;
   onTaskClick: (task: KanbanTask) => void;
 }) {
-  if (tasks.length === 0) return null;
+  const sorted = [...tasks].sort((a, b) => {
+    const aDone = DELIVERED_STATUSES.includes(a.status) ? 0 : 1;
+    const bDone = DELIVERED_STATUSES.includes(b.status) ? 0 : 1;
+    return aDone - bDone;
+  });
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <h3 className="text-sm font-medium">{title}</h3>
-        <Badge variant={tone === "success" ? "default" : "secondary"} className="tabular-nums">
-          {count} criativos
-        </Badge>
-      </div>
-      <div className="rounded-md border divide-y">
-        {tasks.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            disabled={!canEdit}
-            onClick={() => onTaskClick(t)}
-            className={cn(
-              "w-full flex items-center justify-between gap-3 px-3 py-2 text-left transition-colors",
-              canEdit && "hover:bg-muted/50 cursor-pointer",
-            )}
-          >
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate">{t.title}</p>
-              <p className="text-xs text-muted-foreground truncate">
-                {t.subject ?? "—"} • {t.assignedTo?.name ?? t.assignedTo?.email ?? "Sem responsável"}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Badge variant="outline" className="tabular-nums">×{t.creativeCount}</Badge>
-              <Badge variant="outline">{STATUS_LABEL[t.status]}</Badge>
-            </div>
-          </button>
-        ))}
-      </div>
+    <div className="rounded-md border divide-y">
+      {sorted.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          disabled={!canEdit}
+          onClick={() => onTaskClick(t)}
+          className={cn(
+            "w-full flex items-center justify-between gap-3 px-3 py-2 text-left transition-colors",
+            canEdit && "hover:bg-muted/50 cursor-pointer",
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium truncate">{t.title}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {t.subject ?? "—"} • {t.assignedTo?.name ?? t.assignedTo?.email ?? "Sem responsável"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant="outline" className="tabular-nums">×{t.creativeCount}</Badge>
+            <Badge variant={DELIVERED_STATUSES.includes(t.status) ? "default" : "outline"}>
+              {STATUS_LABEL[t.status]}
+            </Badge>
+          </div>
+        </button>
+      ))}
     </div>
   );
 }

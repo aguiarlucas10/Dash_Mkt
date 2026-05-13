@@ -16,54 +16,47 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
-export type Goal = {
+export type EditableCategory = {
   id: string;
-  categoryId: string;
-  category: { id: string; name: string; color: string | null };
-  month: string; // ISO date
-  target: number;
-  notes: string | null;
+  name: string;
+  description: string | null;
+  color: string | null;
 };
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // Mês alvo (sempre dia 1 em UTC). Categoria alvo desta meta.
-  monthStart: Date;
-  categoryId: string;
-  categoryName: string;
-  goal: Goal | null;
+  category: EditableCategory | null;
 };
 
-export function GoalDialog({ open, onOpenChange, monthStart, categoryId, categoryName, goal }: Props) {
+export function GoalCategoryDialog({ open, onOpenChange, category }: Props) {
+  const isEdit = Boolean(category);
   const queryClient = useQueryClient();
-  const [target, setTarget] = useState<number>(goal?.target ?? 0);
-  const [notes, setNotes] = useState(goal?.notes ?? "");
+  const [name, setName] = useState(category?.name ?? "");
+  const [description, setDescription] = useState(category?.description ?? "");
 
   useEffect(() => {
     if (open) {
-      setTarget(goal?.target ?? 0);
-      setNotes(goal?.notes ?? "");
+      setName(category?.name ?? "");
+      setDescription(category?.description ?? "");
     }
-  }, [open, goal]);
-
-  const monthKey = format(monthStart, "yyyy-MM");
-  const monthLabel = format(monthStart, "MMMM 'de' yyyy", { locale: ptBR });
+  }, [open, category]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/goals", {
-        method: "POST",
+      const payload = {
+        name: name.trim(),
+        description: description.trim() || null,
+      };
+      const url = isEdit && category
+        ? `/api/goal-categories/${category.id}`
+        : "/api/goal-categories";
+      const method = isEdit ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          categoryId,
-          month: monthKey,
-          target,
-          notes: notes.trim() || null,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -72,8 +65,9 @@ export function GoalDialog({ open, onOpenChange, monthStart, categoryId, categor
       return res.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["goal-categories"] });
       queryClient.invalidateQueries({ queryKey: ["goals"] });
-      toast.success("Meta salva");
+      toast.success(isEdit ? "Meta atualizada" : "Meta criada");
       onOpenChange(false);
     },
     onError: (err: Error) => toast.error(err.message),
@@ -81,80 +75,83 @@ export function GoalDialog({ open, onOpenChange, monthStart, categoryId, categor
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      if (!goal) return;
-      const res = await fetch(`/api/goals/${goal.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Erro ao deletar");
+      if (!category) return;
+      const res = await fetch(`/api/goal-categories/${category.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Erro ao remover");
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["goal-categories"] });
       queryClient.invalidateQueries({ queryKey: ["goals"] });
-      toast.success("Target removido");
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success("Meta removida");
       onOpenChange(false);
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const canSubmit = name.trim().length > 0;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="capitalize">
-            {categoryName} — {monthLabel}
-          </DialogTitle>
+          <DialogTitle>{isEdit ? "Editar tipo de meta" : "Nova meta"}</DialogTitle>
           <DialogDescription>
-            Quantos criativos dessa categoria o time pretende entregar neste mês.
+            Tipos de meta organizam categorias separadas — ex: "Criativos de mídia",
+            "Ativações com Influenciadores no Studio". Cada uma tem target mensal próprio.
           </DialogDescription>
         </DialogHeader>
 
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            saveMutation.mutate();
+            if (canSubmit) saveMutation.mutate();
           }}
           className="space-y-4"
         >
           <div className="space-y-1.5">
-            <Label htmlFor="target">Meta (qtde) *</Label>
+            <Label htmlFor="name">Nome *</Label>
             <Input
-              id="target"
-              type="number"
-              min={0}
-              max={99999}
+              id="name"
               required
-              value={target}
-              onChange={(e) => setTarget(Math.max(0, Number(e.target.value) || 0))}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex: Ativações com Influenciadores no Studio"
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="notes">Observações</Label>
+            <Label htmlFor="description">Descrição</Label>
             <Textarea
-              id="notes"
+              id="description"
               rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Contexto da meta, ações de venda etc."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Detalhe o que entra nessa meta"
             />
           </div>
 
           <DialogFooter className="gap-2 sm:gap-2">
-            {goal && (
+            {isEdit && (
               <Button
                 type="button"
                 variant="destructive"
                 onClick={() => {
-                  if (confirm("Remover o target deste mês?")) deleteMutation.mutate();
+                  if (confirm(`Remover a meta "${category?.name}"?\n\nAs tasks vinculadas ficam sem meta. As metas mensais dessa categoria são apagadas.`)) {
+                    deleteMutation.mutate();
+                  }
                 }}
                 disabled={deleteMutation.isPending}
                 className="mr-auto"
               >
                 <Trash2 className="h-4 w-4" />
-                Remover target
+                Remover
               </Button>
             )}
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={saveMutation.isPending}>
+            <Button type="submit" disabled={!canSubmit || saveMutation.isPending}>
               {saveMutation.isPending ? "Salvando…" : "Salvar"}
             </Button>
           </DialogFooter>

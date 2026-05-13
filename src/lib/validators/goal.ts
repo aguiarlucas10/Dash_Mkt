@@ -12,6 +12,7 @@ const monthSchema = z
   });
 
 export const upsertGoalSchema = z.object({
+  categoryId: z.string().cuid(),
   month: monthSchema,
   target: z.coerce.number().int().min(0).max(99999),
   notes: z.string().max(2000).optional().nullable(),
@@ -22,5 +23,19 @@ export const updateGoalSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
 });
 
+export const createGoalCategorySchema = z.object({
+  name: z.string().min(1).max(120),
+  description: z.string().max(500).optional().nullable(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional()
+    .nullable(),
+});
+
+export const updateGoalCategorySchema = createGoalCategorySchema.partial();
+
 export type UpsertGoalInput = z.infer<typeof upsertGoalSchema>;
 export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;
+export type CreateGoalCategoryInput = z.infer<typeof createGoalCategorySchema>;
+export type UpdateGoalCategoryInput = z.infer<typeof updateGoalCategorySchema>;

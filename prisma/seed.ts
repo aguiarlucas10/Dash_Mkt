@@ -125,14 +125,46 @@ async function main() {
     console.log(`stockout items: ${stockoutExisting} (existing, skip)`);
   }
 
+  const mediaCategory = await prisma.goalCategory.upsert({
+    where: { name: "Criativos de mídia" },
+    update: {},
+    create: {
+      name: "Criativos de mídia",
+      description: "Vídeos, estáticos e carrosséis para anúncios.",
+    },
+  });
+  const influencerCategory = await prisma.goalCategory.upsert({
+    where: { name: "Ativações com Influenciadores no Studio" },
+    update: {},
+    create: {
+      name: "Ativações com Influenciadores no Studio",
+      description: "Sessões presenciais com creators no estúdio próprio.",
+    },
+  });
+  console.log(`goal categories: ${mediaCategory.name}, ${influencerCategory.name}`);
+
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const goal = await prisma.goal.upsert({
-    where: { month: monthStart },
+  const goal1 = await prisma.goal.upsert({
+    where: { categoryId_month: { categoryId: mediaCategory.id, month: monthStart } },
     update: {},
-    create: { month: monthStart, target: 20, notes: "Meta inicial de demonstração" },
+    create: {
+      categoryId: mediaCategory.id,
+      month: monthStart,
+      target: 20,
+      notes: "Meta inicial de demonstração",
+    },
   });
-  console.log(`goal ${goal.month.toISOString().slice(0, 7)}: target ${goal.target}`);
+  const goal2 = await prisma.goal.upsert({
+    where: { categoryId_month: { categoryId: influencerCategory.id, month: monthStart } },
+    update: {},
+    create: {
+      categoryId: influencerCategory.id,
+      month: monthStart,
+      target: 4,
+    },
+  });
+  console.log(`goals ${goal1.month.toISOString().slice(0, 7)}: media ${goal1.target}, influ ${goal2.target}`);
 }
 
 main()

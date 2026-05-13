@@ -6,6 +6,8 @@ export type KanbanTask = {
   subject: string | null;
   description: string | null;
   creativeCount: number;
+  goalCategoryId: string | null;
+  goalCategory: { id: string; name: string; color: string | null } | null;
   type: TaskType;
   priority: Priority;
   status: TaskStatus;
@@ -23,6 +25,7 @@ export type KanbanTask = {
 
 export type ProductOption = { id: string; sku: string; name: string };
 export type UserOption = { id: string; email: string; name: string | null };
+export type GoalCategoryOption = { id: string; name: string; color: string | null };
 
 export const STATUS_COLUMNS: { status: TaskStatus; label: string }[] = [
   { status: "BACKLOG", label: "Backlog" },

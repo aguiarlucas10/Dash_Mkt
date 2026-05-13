@@ -34,6 +34,7 @@ export async function PATCH(
       ...(parsed.data.description !== undefined && { description: parsed.data.description }),
       ...(parsed.data.productId !== undefined && { productId: parsed.data.productId }),
       ...(parsed.data.creativeCount !== undefined && { creativeCount: parsed.data.creativeCount }),
+      ...(parsed.data.goalCategoryId !== undefined && { goalCategoryId: parsed.data.goalCategoryId }),
       ...(parsed.data.type !== undefined && { type: parsed.data.type }),
       ...(parsed.data.priority !== undefined && { priority: parsed.data.priority }),
       ...(parsed.data.deadline !== undefined && { deadline: parsed.data.deadline }),
@@ -41,7 +42,7 @@ export async function PATCH(
       ...(parsed.data.platformTargets !== undefined && { platformTargets: parsed.data.platformTargets }),
       ...(parsed.data.assets !== undefined && { assets: parsed.data.assets }),
     },
-    include: { product: true, assignedTo: true },
+    include: { product: true, assignedTo: true, goalCategory: true },
   });
 
   return NextResponse.json({ task });

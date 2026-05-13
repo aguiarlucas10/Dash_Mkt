@@ -117,6 +117,11 @@ model CreativeTask {
   // creativeCount: quantos criativos a task entrega (1, 5, 10…). Usado para
   // somar contra a meta mensal — uma task pode representar várias entregas.
   creativeCount   Int        @default(1)
+  // goalCategoryId: a qual meta esta task contribui (ex: "Criativos de mídia",
+  // "Ativações Studio"). Opcional — tasks sem categoria ainda contam no total
+  // mas não em nenhuma meta específica.
+  goalCategoryId  String?
+  goalCategory    GoalCategory? @relation(fields: [goalCategoryId], references: [id], onDelete: SetNull)
   type            TaskType
   priority        Priority   @default(P2)
   deadline        DateTime?
@@ -213,16 +218,35 @@ model StockoutEvent {
 
 // ─── Novos models (iteração Calendário/Metas/Rupturas-flat) ────────────────
 
-// Meta mensal de criativos. O admin define o `target` (qtde de criativos
-// esperada no mês); o sistema calcula realizado vs em aberto a partir das
-// CreativeTask com `deadline` no mês.
+// GoalCategory: tipo de meta (ex: "Criativos de mídia", "Ativações com
+// Influenciadores no Studio"). O admin cria as categorias; cada task escolhe
+// uma. Cada categoria tem uma meta mensal (target) separada via `Goal`.
+model GoalCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String?  // hex opcional para UI (chip/card)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  goals Goal[]
+  tasks CreativeTask[]
+}
+
+// Meta mensal de uma categoria. Uma linha por (categoria, mês). O admin define
+// o target; o sistema calcula realizado vs em aberto a partir das CreativeTask
+// com `goalCategoryId` igual e `deadline` no mês.
 model Goal {
-  id        String   @id @default(cuid())
-  month     DateTime @unique @db.Date
-  target    Int
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  categoryId String
+  category   GoalCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  month      DateTime @db.Date
+  target     Int
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([categoryId, month])
 }
 
 // Ruptura simplificada — tabela plana. Cada item é um produto/categoria que
