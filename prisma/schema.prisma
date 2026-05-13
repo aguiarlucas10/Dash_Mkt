@@ -1,0 +1,202 @@
+// Dashboard de Criativos — schema Prisma
+// Domínio: organização de demanda de criativos para anúncios + rastreamento
+// de rupturas de estoque e anúncios pausados por essa razão.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Em Prisma 7 a connection string vai em prisma.config.ts (CLI) e via
+  // adapter no construtor do PrismaClient (runtime). Ver src/lib/db.ts.
+}
+
+// ─── Enums ─────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum Tier {
+  A
+  B
+  C
+}
+
+enum TaskType {
+  LAUNCH
+  PROMO
+  EVERGREEN
+  REPLACEMENT
+}
+
+enum Priority {
+  P0
+  P1
+  P2
+  P3
+}
+
+enum TaskStatus {
+  BACKLOG
+  BRIEFING
+  IN_PRODUCTION
+  IN_REVIEW
+  APPROVED
+  PUBLISHED
+  BLOCKED
+}
+
+enum Platform {
+  META
+  TIKTOK
+  GOOGLE
+  YOUTUBE
+}
+
+enum AdStatus {
+  ACTIVE
+  PAUSED
+}
+
+enum PauseReason {
+  STOCKOUT
+  LOW_PERFORMANCE
+  MANUAL
+  CREATIVE_REVIEW
+}
+
+// ─── Models ────────────────────────────────────────────────────────────────
+
+// User espelha o auth.users do Supabase. O id é exatamente o uuid de auth.users,
+// para que possamos consultar nossa allowlist apenas com o id da sessão.
+// Quem não tem linha aqui, não tem acesso (allowlist no nível da aplicação).
+model User {
+  id        String   @id @db.Uuid
+  email     String   @unique
+  name      String?
+  role      Role     @default(EDITOR)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasksRequested CreativeTask[] @relation("RequestedBy")
+  tasksAssigned  CreativeTask[] @relation("AssignedTo")
+  statusChanges  StatusChange[]
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  sku          String   @unique
+  name         String
+  margin       Decimal? @db.Decimal(6, 4)
+  priorityTier Tier?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  creativeTasks CreativeTask[]
+  ads           Ad[]
+  stockouts     StockoutEvent[]
+}
+
+model CreativeTask {
+  id              String     @id @default(cuid())
+  title           String
+  // subject: texto livre — produto, categoria, coleção, campanha. Ex: "Brincos
+  // Q3", "Coleção Verão 2026", "Brinco Solitário Ouro". Não é FK para Product
+  // porque a unidade de planejamento criativo nem sempre é um SKU.
+  subject         String?
+  description     String?
+  type            TaskType
+  priority        Priority   @default(P2)
+  deadline        DateTime?
+  status          TaskStatus @default(BACKLOG)
+  platformTargets Platform[]
+  assets          String[]   @default([])
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  productId     String?
+  product       Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  requestedById String   @db.Uuid
+  requestedBy   User     @relation("RequestedBy", fields: [requestedById], references: [id])
+  assignedToId  String?  @db.Uuid
+  assignedTo    User?    @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  statusHistory StatusChange[]
+  ads           AdCreative[]
+
+  @@index([status])
+  @@index([productId])
+  @@index([assignedToId])
+  @@index([deadline])
+}
+
+model StatusChange {
+  id         String      @id @default(cuid())
+  taskId     String
+  task       CreativeTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fromStatus TaskStatus?
+  toStatus   TaskStatus
+  userId     String      @db.Uuid
+  user       User        @relation(fields: [userId], references: [id])
+  at         DateTime    @default(now())
+
+  @@index([taskId])
+  @@index([at])
+}
+
+model Ad {
+  id          String       @id @default(cuid())
+  externalId  String?
+  name        String
+  platform    Platform
+  status      AdStatus     @default(ACTIVE)
+  pauseReason PauseReason?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  productId  String?
+  product    Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+  stockoutId String?
+  stockout   StockoutEvent? @relation(fields: [stockoutId], references: [id], onDelete: SetNull)
+
+  creatives AdCreative[]
+
+  @@index([status])
+  @@index([productId])
+  @@index([stockoutId])
+}
+
+// Histórico N:N de qual criativo rodou em qual anúncio e quando.
+model AdCreative {
+  id        String       @id @default(cuid())
+  adId      String
+  ad        Ad           @relation(fields: [adId], references: [id], onDelete: Cascade)
+  taskId    String
+  task      CreativeTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  startedAt DateTime     @default(now())
+  endedAt   DateTime?
+
+  @@index([adId])
+  @@index([taskId])
+}
+
+model StockoutEvent {
+  id        String    @id @default(cuid())
+  productId String
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  startedAt DateTime
+  endedAt   DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  affectedAds Ad[]
+
+  @@index([productId])
+  @@index([endedAt])
+}
