@@ -4,9 +4,8 @@ import { TaskStatus, StockoutItemStatus } from "@/generated/prisma/enums";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { differenceInDays, format } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { PackageX } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -48,11 +47,6 @@ export default async function DashboardPage() {
     TaskStatus.IN_REVIEW,
   ]);
 
-  const oldestStockout = activeStockouts[activeStockouts.length - 1];
-  const stockoutOldestDays = oldestStockout
-    ? differenceInDays(new Date(), oldestStockout.createdAt)
-    : null;
-
   return (
     <div className="p-6 space-y-6 max-w-7xl">
       <div className="flex items-end justify-between">
@@ -64,32 +58,6 @@ export default async function DashboardPage() {
           Abrir Kanban
         </Link>
       </div>
-
-      {activeStockouts.length > 0 && (
-        <Link
-          href="/rupturas"
-          className="flex items-center gap-4 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 transition-colors hover:bg-destructive/10"
-        >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-destructive">
-            <PackageX className="h-5 w-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-base font-semibold tracking-tight">
-              <span className="text-destructive tabular-nums">{activeStockouts.length}</span>
-              {" "}
-              {activeStockouts.length === 1 ? "ruptura ativa" : "rupturas ativas"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {stockoutOldestDays !== null && stockoutOldestDays > 0
-                ? `A mais antiga: ${stockoutOldestDays === 1 ? "1 dia" : `${stockoutOldestDays} dias`} sem reposição.`
-                : "Registradas hoje."}
-            </p>
-          </div>
-          <span className="text-xs font-medium text-destructive hidden sm:inline">
-            Resolver →
-          </span>
-        </Link>
-      )}
 
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard label="Criativos totais" value={totalCreatives} />
