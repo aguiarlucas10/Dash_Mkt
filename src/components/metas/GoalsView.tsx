@@ -38,7 +38,6 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
   IN_REVIEW: "Em aprovação",
   APPROVED: "Aprovado",
   PUBLISHED: "Publicado",
-  BLOCKED: "Bloqueado",
 };
 
 const DELIVERED_STATUSES: TaskStatus[] = ["APPROVED", "PUBLISHED"];

@@ -34,7 +34,6 @@ export const STATUS_COLUMNS: { status: TaskStatus; label: string }[] = [
   { status: "IN_REVIEW", label: "Em aprovação" },
   { status: "APPROVED", label: "Aprovado" },
   { status: "PUBLISHED", label: "Publicado" },
-  { status: "BLOCKED", label: "Bloqueado" },
 ];
 
 export const TASK_TYPE_LABEL: Record<TaskType, string> = {

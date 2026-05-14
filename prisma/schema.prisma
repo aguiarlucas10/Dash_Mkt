@@ -48,7 +48,6 @@ enum TaskStatus {
   IN_REVIEW
   APPROVED
   PUBLISHED
-  BLOCKED
 }
 
 enum Platform {
