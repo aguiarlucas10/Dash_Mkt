@@ -254,7 +254,7 @@ export function GoalsView({
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-1">
                       <div
                         className={cn(
-                          "h-full transition-all",
+                          "h-full transition-[width] duration-300",
                           progressPct >= 100 ? "bg-success" : "bg-primary",
                         )}
                         style={{ width: `${progressPct}%` }}

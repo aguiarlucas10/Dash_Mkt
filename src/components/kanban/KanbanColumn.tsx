@@ -33,7 +33,9 @@ export function KanbanColumn({ status, label, tasks, onTaskClick }: Props) {
           <KanbanCard key={task.id} task={task} onClick={() => onTaskClick(task)} />
         ))}
         {tasks.length === 0 && (
-          <p className="text-xs text-muted-foreground/70 text-center py-4">Vazio</p>
+          <p className="text-xs text-muted-foreground/60 text-center py-6 italic">
+            Arraste um card até aqui
+          </p>
         )}
       </div>
     </div>
