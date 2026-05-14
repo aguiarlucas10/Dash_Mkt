@@ -73,7 +73,7 @@ export default async function MetasPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Metas</h1>
         <p className="text-sm text-muted-foreground">
           Tipos de meta separados (ex: Criativos de mídia, Ativações Studio). Cada um
-          tem target mensal próprio; as tasks são vinculadas via dropdown "Meta".
+          tem target mensal próprio; as demandas são vinculadas via dropdown "Meta".
         </p>
       </div>
 

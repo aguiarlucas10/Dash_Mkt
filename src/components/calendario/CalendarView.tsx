@@ -9,7 +9,6 @@ import {
   endOfMonth,
   endOfWeek,
   format,
-  isSameDay,
   isSameMonth,
   isToday,
   startOfMonth,
@@ -38,15 +37,15 @@ type Props = {
 type ViewMode = "month" | "week";
 
 const PRIORITY_DOT: Record<Priority, string> = {
-  P0: "bg-destructive",
-  P1: "bg-orange-500",
-  P2: "bg-blue-500",
-  P3: "bg-zinc-400",
+  P0: "bg-priority-p0",
+  P1: "bg-priority-p1",
+  P2: "bg-priority-p2",
+  P3: "bg-priority-p3",
 };
 
 async function fetchTasks(): Promise<KanbanTask[]> {
-  const res = await fetch("/api/tasks", { cache: "no-store" });
-  if (!res.ok) throw new Error("Falha ao carregar tasks");
+  const res = await fetch("/api/tasks");
+  if (!res.ok) throw new Error("Falha ao carregar demandas");
   const data = await res.json();
   return data.tasks;
 }
@@ -85,13 +84,27 @@ export function CalendarView({ initialTasks, products, users, goalCategories, ca
     const map = new Map<string, KanbanTask[]>();
     for (const t of tasks) {
       if (!t.deadline) continue;
-      const key = t.deadline.slice(0, 10); // YYYY-MM-DD
+      const key = t.deadline.slice(0, 10);
       const arr = map.get(key) ?? [];
       arr.push(t);
       map.set(key, arr);
     }
     return map;
   }, [tasks]);
+
+  const agendaDays = useMemo(() => {
+    const start = startOfMonth(cursor);
+    const end = endOfMonth(cursor);
+    const out: Array<{ day: Date; tasks: KanbanTask[] }> = [];
+    for (let d = start; d <= end; d = addDays(d, 1)) {
+      const key = format(d, "yyyy-MM-dd");
+      const dayTasks = tasksByDay.get(key);
+      if (dayTasks && dayTasks.length > 0) {
+        out.push({ day: d, tasks: dayTasks });
+      }
+    }
+    return out;
+  }, [cursor, tasksByDay]);
 
   const undated = tasks.filter((t) => !t.deadline);
 
@@ -112,21 +125,29 @@ export function CalendarView({ initialTasks, products, users, goalCategories, ca
   }
 
   const weekdayLabels = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+  const mobileHeader = format(cursor, "MMMM 'de' yyyy", { locale: ptBR });
 
   return (
     <div className="space-y-4 flex-1 flex flex-col min-h-0">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={goPrev} title="Anterior">
+          <Button variant="outline" size="icon" onClick={goPrev} aria-label="Período anterior">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={goNext} title="Próximo">
+          <Button variant="outline" size="icon" onClick={goNext} aria-label="Próximo período">
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button variant="outline" onClick={goToday}>Hoje</Button>
-          <h2 className="text-lg font-semibold tracking-tight ml-2 capitalize">{header}</h2>
+          <h2 className="text-lg font-semibold tracking-tight ml-2 capitalize">
+            <span className="md:hidden">{mobileHeader}</span>
+            <span className="hidden md:inline">{header}</span>
+          </h2>
         </div>
-        <Tabs value={view} onValueChange={(v) => v && setView(v as ViewMode)}>
+        <Tabs
+          value={view}
+          onValueChange={(v) => v && setView(v as ViewMode)}
+          className="hidden md:block"
+        >
           <TabsList>
             <TabsTrigger value="month">Mês</TabsTrigger>
             <TabsTrigger value="week">Semana</TabsTrigger>
@@ -134,7 +155,48 @@ export function CalendarView({ initialTasks, products, users, goalCategories, ca
         </Tabs>
       </div>
 
-      <div className="rounded-lg border overflow-hidden">
+      <div className="md:hidden rounded-lg border divide-y">
+        {agendaDays.length === 0 && (
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">
+            Nenhum prazo nesse mês.
+          </p>
+        )}
+        {agendaDays.map(({ day, tasks: dayTasks }) => (
+          <div key={day.toISOString()} className="px-3 py-2.5">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span
+                className={cn(
+                  "text-xs font-medium uppercase tracking-wide tabular-nums",
+                  isToday(day) ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                {format(day, "EEE, dd 'de' MMM", { locale: ptBR })}
+              </span>
+              {isToday(day) && (
+                <Badge variant="default" className="h-4 text-[10px] px-1.5">Hoje</Badge>
+              )}
+            </div>
+            <div className="space-y-1">
+              {dayTasks.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => openTask(t)}
+                  className="w-full text-left flex items-center gap-2 rounded-md border px-2 py-2 min-h-11 hover:bg-accent transition-colors"
+                >
+                  <span className={cn("h-2 w-2 rounded-full shrink-0", PRIORITY_DOT[t.priority])} />
+                  <span className="flex-1 truncate text-sm">{t.title}</span>
+                  {t.creativeCount > 1 && (
+                    <span className="text-xs text-muted-foreground tabular-nums">×{t.creativeCount}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden md:block rounded-lg border overflow-hidden">
         <div className="grid grid-cols-7 bg-muted/50 border-b">
           {weekdayLabels.map((d) => (
             <div key={d} className="px-2 py-1.5 text-xs font-medium text-center uppercase tracking-wide text-muted-foreground">
@@ -176,7 +238,7 @@ export function CalendarView({ initialTasks, products, users, goalCategories, ca
                       type="button"
                       onClick={() => openTask(t)}
                       className="w-full text-left rounded px-1.5 py-0.5 text-xs bg-card border hover:bg-accent transition-colors flex items-center gap-1 group"
-                      title={`${t.title}${t.subject ? ` — ${t.subject}` : ""}${t.assignedTo ? ` (${t.assignedTo.name ?? t.assignedTo.email})` : ""}`}
+                      aria-label={`${t.title}${t.subject ? `, ${t.subject}` : ""}${t.assignedTo ? `, responsável ${t.assignedTo.name ?? t.assignedTo.email}` : ""}`}
                     >
                       <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", PRIORITY_DOT[t.priority])} />
                       <span className="truncate">{t.title}</span>

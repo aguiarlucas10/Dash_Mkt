@@ -29,7 +29,7 @@ type Props = {
 };
 
 async function fetchItems(): Promise<StockoutItem[]> {
-  const res = await fetch("/api/stockout-items", { cache: "no-store" });
+  const res = await fetch("/api/stockout-items");
   if (!res.ok) throw new Error("Falha ao carregar");
   const data = await res.json();
   return data.items;
@@ -124,7 +124,11 @@ export function StockoutsList({ initialItems, canEdit }: Props) {
                     disabled={!canEdit || toggleStatusMutation.isPending}
                     onClick={() => canEdit && toggleStatusMutation.mutate(item)}
                     className={canEdit ? "cursor-pointer" : "cursor-default"}
-                    title={canEdit ? "Clique para alternar" : undefined}
+                    aria-label={
+                      canEdit
+                        ? `Marcar ${item.product} como ${item.status === "ACTIVE" ? "inativo" : "ativo"}`
+                        : `Status: ${item.status === "ACTIVE" ? "ativo" : "inativo"}`
+                    }
                   >
                     <Badge variant={item.status === "ACTIVE" ? "destructive" : "secondary"}>
                       {item.status === "ACTIVE" ? "Ativo" : "Inativo"}
@@ -140,7 +144,7 @@ export function StockoutsList({ initialItems, canEdit }: Props) {
                         setEditing(item);
                         setOpen(true);
                       }}
-                      title="Editar"
+                      aria-label={`Editar ${item.product}`}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>

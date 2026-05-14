@@ -10,6 +10,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -133,20 +144,35 @@ export function GoalCategoryDialog({ open, onOpenChange, category }: Props) {
 
           <DialogFooter className="gap-2 sm:gap-2">
             {isEdit && (
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => {
-                  if (confirm(`Remover a meta "${category?.name}"?\n\nAs tasks vinculadas ficam sem meta. As metas mensais dessa categoria são apagadas.`)) {
-                    deleteMutation.mutate();
+              <AlertDialog>
+                <AlertDialogTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={deleteMutation.isPending}
+                      className="mr-auto"
+                    />
                   }
-                }}
-                disabled={deleteMutation.isPending}
-                className="mr-auto"
-              >
-                <Trash2 className="h-4 w-4" />
-                Remover
-              </Button>
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Remover
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remover a meta {category?.name}?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      As demandas vinculadas ficam sem meta. As metas mensais dessa categoria são apagadas. Essa ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => deleteMutation.mutate()}>
+                      Remover
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar

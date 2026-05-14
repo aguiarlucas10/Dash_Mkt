@@ -44,21 +44,21 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
 const DELIVERED_STATUSES: TaskStatus[] = ["APPROVED", "PUBLISHED"];
 
 async function fetchTasks(): Promise<KanbanTask[]> {
-  const res = await fetch("/api/tasks", { cache: "no-store" });
-  if (!res.ok) throw new Error("Falha ao carregar tasks");
+  const res = await fetch("/api/tasks");
+  if (!res.ok) throw new Error("Falha ao carregar demandas");
   const data = await res.json();
   return data.tasks;
 }
 
 async function fetchGoals(): Promise<Goal[]> {
-  const res = await fetch("/api/goals", { cache: "no-store" });
+  const res = await fetch("/api/goals");
   if (!res.ok) throw new Error("Falha ao carregar metas");
   const data = await res.json();
   return data.goals;
 }
 
 async function fetchCategories(): Promise<GoalCategoryOption[]> {
-  const res = await fetch("/api/goal-categories", { cache: "no-store" });
+  const res = await fetch("/api/goal-categories");
   if (!res.ok) throw new Error("Falha ao carregar categorias");
   const data = await res.json();
   return data.categories;
@@ -86,6 +86,7 @@ export function GoalsView({
     queryKey: ["goal-categories"],
     queryFn: fetchCategories,
     initialData: initialCategories,
+    staleTime: 5 * 60_000,
   });
 
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
@@ -164,10 +165,10 @@ export function GoalsView({
     <div className="space-y-4">
       <div className="flex items-end justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => setCursor(subMonths(cursor, 1))} title="Mês anterior">
+          <Button variant="outline" size="icon" onClick={() => setCursor(subMonths(cursor, 1))} aria-label="Mês anterior">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={() => setCursor(addMonths(cursor, 1))} title="Próximo mês">
+          <Button variant="outline" size="icon" onClick={() => setCursor(addMonths(cursor, 1))} aria-label="Próximo mês">
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button variant="outline" onClick={() => setCursor(startOfMonth(new Date()))}>
@@ -222,7 +223,7 @@ export function GoalsView({
                         variant="ghost"
                         size="icon"
                         onClick={() => openSetGoal(category.id, category.name)}
-                        title="Definir meta do mês"
+                        aria-label={`Definir meta do mês para ${category.name}`}
                       >
                         <Target className="h-4 w-4" />
                       </Button>
@@ -232,7 +233,7 @@ export function GoalsView({
                         variant="ghost"
                         size="icon"
                         onClick={() => openEditCategory(category)}
-                        title="Editar / remover meta"
+                        aria-label={`Editar ou remover meta ${category.name}`}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -244,7 +245,7 @@ export function GoalsView({
                 <div className="grid gap-3 sm:grid-cols-4">
                   <Stat label="Meta" value={target} hint={target === 0 ? "Sem meta no mês" : undefined} />
                   <Stat label="Realizado" value={deliveredCount} hint="Aprovado + Publicado" />
-                  <Stat label="Em aberto" value={inFlightCount} hint="Resto das tasks" />
+                  <Stat label="Em aberto" value={inFlightCount} hint="Resto das demandas" />
                   <div>
                     <p className="text-xs text-muted-foreground">Progresso</p>
                     <p className="text-2xl font-semibold tabular-nums mt-1">
@@ -254,7 +255,7 @@ export function GoalsView({
                       <div
                         className={cn(
                           "h-full transition-all",
-                          progressPct >= 100 ? "bg-green-500" : "bg-primary",
+                          progressPct >= 100 ? "bg-success" : "bg-primary",
                         )}
                         style={{ width: `${progressPct}%` }}
                       />
@@ -267,7 +268,7 @@ export function GoalsView({
                 )}
                 {categoryTasks.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-2">
-                    Nenhuma task vinculada com prazo neste mês.
+                    Nenhuma demanda vinculada com prazo neste mês.
                   </p>
                 )}
               </CardContent>
@@ -280,7 +281,7 @@ export function GoalsView({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg text-muted-foreground">Sem meta vinculada</CardTitle>
               <CardDescription>
-                Tasks com prazo no mês que não pertencem a nenhuma meta. Vincule via Kanban.
+                Demandas com prazo no mês que não pertencem a nenhuma meta. Vincule via Kanban.
               </CardDescription>
             </CardHeader>
             <CardContent>

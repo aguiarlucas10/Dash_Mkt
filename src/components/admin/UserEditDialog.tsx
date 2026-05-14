@@ -40,9 +40,9 @@ type Props = {
 
 const ROLES: Role[] = ["ADMIN", "EDITOR", "VIEWER"];
 const ROLE_LABEL: Record<Role, string> = {
-  ADMIN: "Admin — pode gerenciar usuários e tudo",
-  EDITOR: "Editor — cria e edita tasks/rupturas",
-  VIEWER: "Viewer — só visualiza",
+  ADMIN: "Admin: pode gerenciar usuários e tudo",
+  EDITOR: "Editor: cria e edita demandas/rupturas",
+  VIEWER: "Viewer: só visualiza",
 };
 
 export function UserEditDialog({ open, onOpenChange, user, currentUserId }: Props) {

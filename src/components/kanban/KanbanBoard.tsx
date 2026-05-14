@@ -29,8 +29,8 @@ type Props = {
 };
 
 async function fetchTasks(): Promise<KanbanTask[]> {
-  const res = await fetch("/api/tasks", { cache: "no-store" });
-  if (!res.ok) throw new Error("Falha ao carregar tasks");
+  const res = await fetch("/api/tasks");
+  if (!res.ok) throw new Error("Falha ao carregar demandas");
   const data = await res.json();
   return data.tasks;
 }

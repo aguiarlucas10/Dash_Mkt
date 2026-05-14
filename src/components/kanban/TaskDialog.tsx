@@ -10,6 +10,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -139,7 +150,7 @@ export function TaskDialog({
         });
       }
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      toast.success(isEdit ? "Task atualizada" : "Task criada");
+      toast.success(isEdit ? "Demanda atualizada" : "Demanda criada");
       onOpenChange(false);
     },
     onError: (err: Error) => {
@@ -155,7 +166,7 @@ export function TaskDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      toast.success("Task deletada");
+      toast.success("Demanda deletada");
       onOpenChange(false);
     },
     onError: (err: Error) => toast.error(err.message),
@@ -379,20 +390,35 @@ export function TaskDialog({
 
           <DialogFooter className="gap-2 sm:gap-2">
             {isEdit && (
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => {
-                  if (confirm("Deletar essa task? Essa ação não pode ser desfeita.")) {
-                    deleteMutation.mutate();
+              <AlertDialog>
+                <AlertDialogTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={deleteMutation.isPending}
+                      className="mr-auto"
+                    />
                   }
-                }}
-                disabled={deleteMutation.isPending}
-                className="mr-auto"
-              >
-                <Trash2 className="h-4 w-4" />
-                Deletar
-              </Button>
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Deletar
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Deletar essa demanda?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      A demanda <strong>{task?.title}</strong> será removida junto com o histórico de movimentações entre status. Essa ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => deleteMutation.mutate()}>
+                      Deletar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar

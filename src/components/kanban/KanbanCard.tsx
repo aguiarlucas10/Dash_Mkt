@@ -38,14 +38,24 @@ export function KanbanCard({ task, onClick, isDragOverlay }: Props) {
       ref={isDragOverlay ? undefined : setNodeRef}
       style={style}
       {...(!isDragOverlay ? { ...listeners, ...attributes } : {})}
+      aria-label={`Editar: ${task.title}`}
       onClick={(e) => {
         // Não abre modal se acabou de soltar um drag
         if (isDragging) return;
         e.stopPropagation();
         onClick();
       }}
+      onKeyDown={(e) => {
+        if (isDragging || isDragOverlay) return;
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          onClick();
+        }
+      }}
       className={cn(
         "p-3 cursor-grab active:cursor-grabbing select-none transition-shadow",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         isDragging && "opacity-40",
         isDragOverlay && "shadow-lg ring-2 ring-primary/40 cursor-grabbing",
       )}

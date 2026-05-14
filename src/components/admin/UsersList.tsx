@@ -33,7 +33,7 @@ const ROLE_VARIANT: Record<Role, "default" | "outline" | "secondary"> = {
 };
 
 async function fetchUsers(): Promise<UserRow[]> {
-  const res = await fetch("/api/users", { cache: "no-store" });
+  const res = await fetch("/api/users");
   if (!res.ok) throw new Error("Falha ao carregar");
   const data = await res.json();
   return data.users.map((u: EditableUser) => ({
@@ -109,7 +109,7 @@ export function UsersList({ initialUsers, currentUserId }: Props) {
                       setEditing(u);
                       setEditOpen(true);
                     }}
-                    title="Editar"
+                    aria-label={`Editar ${u.name ?? u.email}`}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
