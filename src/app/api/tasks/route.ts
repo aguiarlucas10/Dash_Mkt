@@ -10,10 +10,27 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const tasks = await prisma.creativeTask.findMany({
-    include: { product: true, assignedTo: true, goalCategory: true },
+  const raw = await prisma.creativeTask.findMany({
+    include: {
+      product: true,
+      assignedTo: true,
+      goalCategory: true,
+      // approvedAt: primeira movimentação para APPROVED. Usado pra contar
+      // "Realizado" em metas pelo mês de aprovação, não pelo deadline original.
+      statusHistory: {
+        where: { toStatus: "APPROVED" },
+        orderBy: { at: "asc" },
+        take: 1,
+        select: { at: true },
+      },
+    },
     orderBy: [{ priority: "asc" }, { deadline: "asc" }],
   });
+
+  const tasks = raw.map(({ statusHistory, ...rest }) => ({
+    ...rest,
+    approvedAt: statusHistory[0]?.at ?? null,
+  }));
 
   return NextResponse.json({ tasks });
 }

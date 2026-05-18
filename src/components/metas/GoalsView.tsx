@@ -106,8 +106,23 @@ export function GoalsView({
   const monthEnd = endOfMonth(cursor);
   const monthKey = format(monthStart, "yyyy-MM");
 
-  const tasksInMonth = useMemo(() => {
+  // Realizado: aprovada/publicada com data de aprovação no mês visualizado.
+  // Conta pela data em que entrou em APPROVED (statusHistory), não pelo deadline.
+  // Tasks aprovadas tardiamente entram no mês em que foram aprovadas, não no
+  // mês em que estavam previstas.
+  const deliveredInMonth = useMemo(() => {
     return tasks.filter((t) => {
+      if (!DELIVERED_STATUSES.includes(t.status)) return false;
+      if (!t.approvedAt) return false;
+      const d = new Date(t.approvedAt);
+      return isWithinInterval(d, { start: monthStart, end: monthEnd });
+    });
+  }, [tasks, monthStart, monthEnd]);
+
+  // Em aberto: ainda não aprovada e com deadline no mês visualizado.
+  const inFlightInMonth = useMemo(() => {
+    return tasks.filter((t) => {
+      if (DELIVERED_STATUSES.includes(t.status)) return false;
       if (!t.deadline) return false;
       const d = new Date(t.deadline);
       return isWithinInterval(d, { start: monthStart, end: monthEnd });
@@ -124,15 +139,22 @@ export function GoalsView({
     return map;
   }, [goals, monthKey]);
 
+  type CategoryBuckets = { delivered: KanbanTask[]; inFlight: KanbanTask[] };
+
   const tasksByCategory = useMemo(() => {
-    const map = new Map<string | null, KanbanTask[]>();
-    for (const t of tasksInMonth) {
-      const arr = map.get(t.goalCategoryId) ?? [];
-      arr.push(t);
-      map.set(t.goalCategoryId, arr);
-    }
+    const map = new Map<string | null, CategoryBuckets>();
+    const getEntry = (categoryId: string | null): CategoryBuckets => {
+      let entry = map.get(categoryId);
+      if (!entry) {
+        entry = { delivered: [], inFlight: [] };
+        map.set(categoryId, entry);
+      }
+      return entry;
+    };
+    for (const t of deliveredInMonth) getEntry(t.goalCategoryId).delivered.push(t);
+    for (const t of inFlightInMonth) getEntry(t.goalCategoryId).inFlight.push(t);
     return map;
-  }, [tasksInMonth]);
+  }, [deliveredInMonth, inFlightInMonth]);
 
   function openCreateCategory() {
     setCategoryDialog({ open: true, category: null });
@@ -158,7 +180,8 @@ export function GoalsView({
   }
 
   const monthLabel = format(monthStart, "MMMM 'de' yyyy", { locale: ptBR });
-  const uncategorizedTasks = tasksByCategory.get(null) ?? [];
+  const uncategorizedEntry = tasksByCategory.get(null) ?? { delivered: [], inFlight: [] };
+  const uncategorizedTasks = [...uncategorizedEntry.delivered, ...uncategorizedEntry.inFlight];
 
   return (
     <div className="space-y-4">
@@ -198,9 +221,9 @@ export function GoalsView({
       <div className="space-y-4">
         {categories.map((category) => {
           const goalForMonth = goalsByCategory.get(category.id) ?? null;
-          const categoryTasks = tasksByCategory.get(category.id) ?? [];
-          const delivered = categoryTasks.filter((t) => DELIVERED_STATUSES.includes(t.status));
-          const inFlight = categoryTasks.filter((t) => !DELIVERED_STATUSES.includes(t.status));
+          const entry = tasksByCategory.get(category.id) ?? { delivered: [], inFlight: [] };
+          const { delivered, inFlight } = entry;
+          const categoryTasks = [...delivered, ...inFlight];
           const deliveredCount = delivered.reduce((s, t) => s + t.creativeCount, 0);
           const inFlightCount = inFlight.reduce((s, t) => s + t.creativeCount, 0);
           const target = goalForMonth?.target ?? 0;
@@ -267,7 +290,7 @@ export function GoalsView({
                 )}
                 {categoryTasks.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-2">
-                    Nenhuma demanda vinculada com prazo neste mês.
+                    Nenhuma demanda aprovada nem com prazo neste mês.
                   </p>
                 )}
               </CardContent>
@@ -280,7 +303,7 @@ export function GoalsView({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg text-muted-foreground">Sem meta vinculada</CardTitle>
               <CardDescription>
-                Demandas com prazo no mês que não pertencem a nenhuma meta. Vincule via Kanban.
+                Demandas aprovadas no mês ou com prazo no mês que não pertencem a nenhuma meta. Vincule via Kanban.
               </CardDescription>
             </CardHeader>
             <CardContent>

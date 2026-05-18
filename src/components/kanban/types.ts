@@ -12,6 +12,7 @@ export type KanbanTask = {
   priority: Priority;
   status: TaskStatus;
   deadline: string | null; // ISO
+  approvedAt: string | null; // ISO; primeira vez que entrou em APPROVED. Usado em métricas mensais.
   platformTargets: Platform[];
   assets: string[];
   productId: string | null;

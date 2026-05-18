@@ -121,7 +121,10 @@ export function TaskDialog({
         goalCategoryId: form.goalCategoryId === NO_META ? null : form.goalCategoryId,
         type: form.type,
         priority: form.priority,
-        deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
+        // Salvar como meio-dia UTC pra evitar deslocamento de fuso. <input type="date">
+        // entrega "YYYY-MM-DD"; new Date(string) interpreta como meia-noite UTC, que em
+        // UTC-3 vira o dia anterior ao formatar com timezone local.
+        deadline: form.deadline ? `${form.deadline}T12:00:00.000Z` : null,
         assignedToId: form.assignedToId,
         platformTargets: form.platformTargets,
         ...(isEdit && task ? { status: form.status } : {}),

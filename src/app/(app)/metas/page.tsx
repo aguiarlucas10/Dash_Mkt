@@ -11,7 +11,17 @@ export default async function MetasPage() {
 
   const [rawTasks, rawGoals, users, categories] = await Promise.all([
     prisma.creativeTask.findMany({
-      include: { product: true, assignedTo: true, goalCategory: true },
+      include: {
+        product: true,
+        assignedTo: true,
+        goalCategory: true,
+        statusHistory: {
+          where: { toStatus: "APPROVED" },
+          orderBy: { at: "asc" },
+          take: 1,
+          select: { at: true },
+        },
+      },
       orderBy: [{ deadline: "asc" }, { priority: "asc" }],
     }),
     prisma.goal.findMany({
@@ -56,6 +66,7 @@ export default async function MetasPage() {
     requestedById: t.requestedById,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
+    approvedAt: t.statusHistory[0]?.at?.toISOString() ?? null,
   }));
 
   const initialGoals = rawGoals.map((g) => ({

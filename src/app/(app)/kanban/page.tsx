@@ -11,7 +11,17 @@ export default async function KanbanPage() {
 
   const [rawTasks, products, users, goalCategories] = await Promise.all([
     prisma.creativeTask.findMany({
-      include: { product: true, assignedTo: true, goalCategory: true },
+      include: {
+        product: true,
+        assignedTo: true,
+        goalCategory: true,
+        statusHistory: {
+          where: { toStatus: "APPROVED" },
+          orderBy: { at: "asc" },
+          take: 1,
+          select: { at: true },
+        },
+      },
       orderBy: [{ priority: "asc" }, { deadline: "asc" }],
     }),
     prisma.product.findMany({
@@ -57,6 +67,7 @@ export default async function KanbanPage() {
     requestedById: t.requestedById,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
+    approvedAt: t.statusHistory[0]?.at?.toISOString() ?? null,
   }));
 
   return (
